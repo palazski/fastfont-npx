@@ -33,7 +33,7 @@ async function main() {
     let totalVariants = 0;
     let fontFamily = '';
     let totalSize = 0;
-    let downloadedVariants = 0;
+    let downloadedFiles = 0;
 
     try {
         const defaults = await getDefaultPaths();
@@ -61,10 +61,13 @@ async function main() {
                         }
                         break;
                     case 'download_complete':
+                        downloadedFiles++;
                         const size = parseFloat(detail);
                         totalSize += size;
-                        downloadedVariants++;
-                        const progress = Math.round((downloadedVariants / (totalVariants * (config.includeWoff1 ? 2 : 1))) * 100);
+
+                        // Calculate progress based on expected total files
+                        const totalExpectedFiles = config.includeWoff1 ? totalVariants * 2 : totalVariants;
+                        const progress = Math.round((downloadedFiles / totalExpectedFiles) * 100);
 
                         if (options.verbose) {
                             spinner.text = `Downloading ${fontFamily} [${progress}%]`;
