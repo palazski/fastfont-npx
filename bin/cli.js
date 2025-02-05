@@ -101,8 +101,8 @@ async function main() {
         await processFont(url, config);
 
         const successMessage = options.verbose
-            ? `Downloaded ${fontFamily} (${totalSize.toFixed(1)}KB)`
-            : `Downloaded ${fontFamily}`;
+            ? ` Downloaded ${fontFamily} (${totalSize.toFixed(1)}KB)`
+            : ` Downloaded ${fontFamily}`;
 
         spinner.succeed(chalk.green(successMessage));
 
