@@ -1,16 +1,15 @@
 const fs = require('fs-extra');
 const path = require('path');
 
-async function updateTailwindConfig(fontFamily) {
+async function updateTailwindConfig(fontFamily, configPath = 'tailwind.config.js') {
     try {
-        const configPath = 'tailwind.config.js';
         let config;
 
         // Check if config exists
         if (await fs.pathExists(configPath)) {
             // Read existing config
             const configContent = await fs.readFile(configPath, 'utf8');
-            
+
             // If config already contains the font family, skip
             if (configContent.includes(fontFamily)) {
                 return;

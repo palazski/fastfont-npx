@@ -19,52 +19,81 @@ async function parseGoogleFontUrl(url) {
         // Parse weight ranges and styles
         const variants = [];
 
-        if (settingsPart && settingsPart.startsWith('ital,wght@')) {
-            const variantSets = settingsPart.replace('ital,wght@', '').split(';');
+        if (settingsPart) {
+            // Handle different format types
+            if (settingsPart.startsWith('ital,wght@')) {
+                // Format: ital,wght@0,100;0,200;1,100;1,200
+                const variantSets = settingsPart.replace('ital,wght@', '').split(';');
 
-            variantSets.forEach(set => {
-                const [italic, weights] = set.split(',');
-                const isItalic = italic === '1';
+                variantSets.forEach(set => {
+                    const [italic, weight] = set.split(',');
+                    const isItalic = italic === '1';
 
-                if (weights.includes('..')) {
-                    const [start, end] = weights.split('..');
-                    for (let weight = parseInt(start); weight <= parseInt(end); weight += 100) {
+                    variants.push({
+                        weight: weight,
+                        style: isItalic ? 'italic' : 'normal'
+                    });
+                });
+            } else if (settingsPart.startsWith('wght@')) {
+                // Format: wght@100;200;300..900
+                const weightSets = settingsPart.replace('wght@', '').split(';');
+
+                weightSets.forEach(weight => {
+                    if (weight.includes('..')) {
+                        // Handle weight range (e.g., 100..900)
+                        const [start, end] = weight.split('..').map(Number);
+                        for (let w = start; w <= end; w += 100) {
+                            variants.push({
+                                weight: w.toString(),
+                                style: 'normal'
+                            });
+                        }
+                    } else {
                         variants.push({
-                            weight: weight.toString(),
-                            style: isItalic ? 'italic' : 'normal'
+                            weight: weight,
+                            style: 'normal'
                         });
                     }
-                } else {
-                    weights.split(',').forEach(weight => {
-                        variants.push({
-                            weight: weight.toString(),
-                            style: isItalic ? 'italic' : 'normal'
-                        });
-                    });
-                }
-            });
+                });
+            }
         }
 
-        // Fetch CSS to get font URLs
+        console.log('Parsed variants:', variants);
+
+        // Fetch CSS to get font URLs and metadata
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
 
-        // Extract WOFF2 URLs
-        const woff2Urls = response.data.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2[^)]*)\)/g)
-            ?.map(url => url.slice(4, -1)) || [];
+        // Extract @font-face blocks with their metadata
+        const fontFaceBlocks = response.data.match(/@font-face\s*{[^}]+}/g) || [];
+        const fontFiles = [];
 
-        if (woff2Urls.length === 0) {
+        fontFaceBlocks.forEach(block => {
+            const urlMatch = block.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2[^)]*)\)/);
+            const weightMatch = block.match(/font-weight:\s*(\d+)/);
+            const styleMatch = block.match(/font-style:\s*(\w+)/);
+
+            if (urlMatch && weightMatch && styleMatch) {
+                fontFiles.push({
+                    url: urlMatch[1],
+                    metadata: {
+                        weight: weightMatch[1],
+                        style: styleMatch[1]
+                    }
+                });
+            }
+        });
+
+        if (fontFiles.length === 0) {
             throw new Error('No WOFF2 files found');
         }
 
-        console.log('Parsed variants:', variants);
-
         return {
             family,
-            urls: woff2Urls,
+            fontFiles,
             variants
         };
     } catch (error) {

@@ -2,46 +2,39 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 
-async function downloadFonts(fontData) {
+async function downloadFonts(fontData, fontsDir = 'fonts') {
     const downloads = [];
 
-    for (const url of fontData.urls) {
+    for (const fontFile of fontData.fontFiles) {
         try {
-            const filename = `${fontData.family}-${path.basename(url)}`;
-            const filepath = path.join('fonts', filename);
+            const filename = `${fontData.family}-${path.basename(fontFile.url)}`;
+            const filepath = path.join(fontsDir, filename);
 
-            // Extract weight and style information from URL
-            const isItalic = url.toLowerCase().includes('italic');
+            const { weight, style } = fontFile.metadata;
 
-            // Extract weight using multiple patterns specific to Google Fonts
-            let weight = null;
-            const patterns = [
-                // Match patterns like /wght@400/ or /wght,400/
-                /wght[@,](\d+)/,
-                // Match patterns like -400- or .400.
-                /[-.](\d+)[-.]/, 
-                // Match patterns in the filename like w400
-                /w(\d+)/
-            ];
-
-            for (const pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) {
-                    weight = match[1];
-                    break;
+            // Find matching variant from parsed data
+            // For weight ranges, check if the weight falls within any range
+            const matchingVariant = fontData.variants.find(v => {
+                if (v.weight.includes('..')) {
+                    const [start, end] = v.weight.split('..').map(Number);
+                    const currentWeight = parseInt(weight);
+                    return currentWeight >= start && currentWeight <= end && v.style === style;
                 }
+                return v.weight === weight && v.style === style;
+            });
+
+            if (matchingVariant) {
+                console.log(`Matched font variant - Weight: ${weight}, Style: ${style}`);
+            } else {
+                console.log(`Warning: No exact match found for Weight: ${weight}, Style: ${style}`);
             }
 
-            // Use weight from variant list if we couldn't extract it from URL
-            if (!weight) {
-                const style = isItalic ? 'italic' : 'normal';
-                const matchingVariant = fontData.variants.find(v => v.style === style);
-                weight = matchingVariant ? matchingVariant.weight : '400';
-            }
+            console.log(`Processing font: ${filename}`);
+            console.log(`Weight: ${weight}, Style: ${style}`);
 
             // Download the font file
             const response = await axios({
-                url,
+                url: fontFile.url,
                 method: 'GET',
                 responseType: 'arraybuffer',
                 headers: {
@@ -51,15 +44,12 @@ async function downloadFonts(fontData) {
 
             await fs.writeFile(filepath, response.data);
 
-            console.log(`Processing font: ${filename}`);
-            console.log(`Weight: ${weight}, Style: ${isItalic ? 'italic' : 'normal'}`);
-
             downloads.push({
-                url,
+                url: fontFile.url,
                 filepath,
                 metadata: {
                     weight,
-                    style: isItalic ? 'italic' : 'normal'
+                    style
                 }
             });
         } catch (error) {

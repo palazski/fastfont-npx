@@ -27,7 +27,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "chmod +x bin/cli.js && node bin/cli.js \"https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap\""
+args = "chmod +x bin/cli.js && node bin/cli.js \"https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap\""
 
 [deployment]
-run = ["sh", "-c", "chmod +x bin/cli.js && node bin/cli.js \"https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap\""]
+run = ["sh", "-c", "chmod +x bin/cli.js && node bin/cli.js \"https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap\""]

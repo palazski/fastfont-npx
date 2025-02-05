@@ -9,6 +9,10 @@ module.exports = {
         "roboto": [
           "'Roboto'",
           "sans-serif"
+        ],
+        "inter": [
+          "'Inter'",
+          "sans-serif"
         ]
       }
     }
