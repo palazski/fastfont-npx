@@ -1,17 +1,27 @@
 {
-  "name": "workspace",
-  "version": "1.0.0",
+  "name": "localfont",
+  "version": "0.0.1",
   "main": "index.js",
   "bin": {
-    "workspace": "bin/cli.js"
+    "localfont": "bin/cli.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "fonts",
+    "local",
+    "font",
+    "google",
+    "fonts",
+    "local font",
+    "tailwind",
+    "css",
+    "tailwindcss"
+  ],
+  "author": "Abdullah Palaz - @palazski",
+  "license": "MIT",
+  "description": "Serve Google Fonts locally and use within TailwindCSS with ease!",
   "dependencies": {
     "axios": "^1.7.9",
     "chalk": "^5.4.1",
