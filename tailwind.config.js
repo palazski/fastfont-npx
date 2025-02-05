@@ -13,6 +13,10 @@ module.exports = {
         "inter": [
           "'Inter'",
           "sans-serif"
+        ],
+        "fira+code": [
+          "'Fira+Code'",
+          "sans-serif"
         ]
       }
     }
