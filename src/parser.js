@@ -17,40 +17,30 @@ async function parseGoogleFontUrl(url) {
         const family = decodeURIComponent(familyPart);
 
         // Parse weight ranges and styles
-        const weightRanges = [];
-        const styles = new Set();
+        const variants = [];
 
-        if (settingsPart) {
-            const settings = settingsPart.split(';');
-            settings.forEach(setting => {
-                const [key, value] = setting.split('@');
-                if (key === 'ital') {
-                    const [isItalic, weights] = value.split(',');
-                    if (weights.includes('..')) {
-                        const [start, end] = weights.split('..');
-                        for (let weight = parseInt(start); weight <= parseInt(end); weight += 100) {
-                            weightRanges.push({ weight, isItalic: isItalic === '1' });
-                            styles.add(isItalic === '1' ? 'italic' : 'normal');
-                        }
-                    } else {
-                        weights.split(',').forEach(weight => {
-                            weightRanges.push({ weight: parseInt(weight), isItalic: isItalic === '1' });
-                            styles.add(isItalic === '1' ? 'italic' : 'normal');
+        if (settingsPart && settingsPart.startsWith('ital,wght@')) {
+            const variantSets = settingsPart.replace('ital,wght@', '').split(';');
+
+            variantSets.forEach(set => {
+                const [italic, weights] = set.split(',');
+                const isItalic = italic === '1';
+
+                if (weights.includes('..')) {
+                    const [start, end] = weights.split('..');
+                    for (let weight = parseInt(start); weight <= parseInt(end); weight += 100) {
+                        variants.push({
+                            weight: weight.toString(),
+                            style: isItalic ? 'italic' : 'normal'
                         });
                     }
-                } else if (key === 'wght') {
-                    if (value.includes('..')) {
-                        const [start, end] = value.split('..');
-                        for (let weight = parseInt(start); weight <= parseInt(end); weight += 100) {
-                            weightRanges.push({ weight, isItalic: false });
-                            styles.add('normal');
-                        }
-                    } else {
-                        value.split(',').forEach(weight => {
-                            weightRanges.push({ weight: parseInt(weight), isItalic: false });
-                            styles.add('normal');
+                } else {
+                    weights.split(',').forEach(weight => {
+                        variants.push({
+                            weight: weight.toString(),
+                            style: isItalic ? 'italic' : 'normal'
                         });
-                    }
+                    });
                 }
             });
         }
@@ -70,13 +60,12 @@ async function parseGoogleFontUrl(url) {
             throw new Error('No WOFF2 files found');
         }
 
+        console.log('Parsed variants:', variants);
+
         return {
             family,
             urls: woff2Urls,
-            variants: weightRanges.map(({ weight, isItalic }) => ({
-                weight: weight.toString(),
-                style: isItalic ? 'italic' : 'normal'
-            }))
+            variants
         };
     } catch (error) {
         throw new Error(`Failed to parse Google Font URL: ${error.message}`);
