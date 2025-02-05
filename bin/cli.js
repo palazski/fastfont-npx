@@ -4,66 +4,10 @@ const { program } = require('commander');
 const { processFont } = require('../src/index');
 const path = require('path');
 const fs = require('fs-extra');
-
-async function detectProjectType() {
-    // Check for common project configurations
-    const hasPackageJson = await fs.pathExists('package.json');
-    const hasNextConfig = await fs.pathExists('next.config.js') || await fs.pathExists('next.config.mjs');
-    const hasViteConfig = await fs.pathExists('vite.config.js') || await fs.pathExists('vite.config.ts');
-    const hasGatsbyConfig = await fs.pathExists('gatsby-config.js');
-
-    if (hasPackageJson) {
-        const pkg = require(path.resolve('package.json'));
-
-        // Check for specific frameworks
-        if (hasNextConfig || pkg.dependencies?.['next'] || pkg.devDependencies?.['next']) return 'next';
-        if (hasGatsbyConfig || pkg.dependencies?.['gatsby'] || pkg.devDependencies?.['gatsby']) return 'gatsby';
-        if (hasViteConfig || pkg.dependencies?.['vite'] || pkg.devDependencies?.['vite']) return 'vite';
-        if (pkg.dependencies?.['@angular/core'] || pkg.devDependencies?.['@angular/core']) return 'angular';
-        if (pkg.dependencies?.['react'] || pkg.devDependencies?.['react']) return 'react';
-        if (pkg.dependencies?.['vue'] || pkg.devDependencies?.['vue']) return 'vue';
-        return 'node';
-    }
-    return 'unknown';
-}
-
-async function getDefaultPaths() {
-    const projectType = await detectProjectType();
-    const defaults = {
-        fontsDir: 'fonts',
-        cssFile: 'styles/fonts.css',
-        configFile: 'tailwind.config.js'
-    };
-
-    switch (projectType) {
-        case 'next':
-            defaults.fontsDir = 'public/fonts';
-            defaults.cssFile = 'styles/fonts.css';
-            break;
-        case 'gatsby':
-            defaults.fontsDir = 'static/fonts';
-            defaults.cssFile = 'src/styles/fonts.css';
-            break;
-        case 'react':
-        case 'vite':
-            defaults.fontsDir = 'public/fonts';
-            defaults.cssFile = 'src/styles/fonts.css';
-            break;
-        case 'vue':
-            defaults.fontsDir = 'public/fonts';
-            defaults.cssFile = 'src/assets/styles/fonts.css';
-            break;
-        case 'angular':
-            defaults.fontsDir = 'src/assets/fonts';
-            defaults.cssFile = 'src/styles/fonts.css';
-            break;
-    }
-
-    return defaults;
-}
+const { getDefaultPaths } = require('./paths');
 
 async function main() {
-    const { default: chalk } = await import('chalk');
+    const chalk = (await import('chalk')).default;
     const ora = (await import('ora')).default;
 
     program
@@ -81,19 +25,15 @@ async function main() {
 
     if (!url) {
         console.error(chalk.red('Error: Please provide a Google Fonts URL'));
-        console.log(chalk.yellow('Usage: npx localfont@latest <google-fonts-url> [options]'));
-        console.log('\nOptions:');
-        console.log('  -f, --fonts-dir <dir>          Directory to store font files');
-        console.log('  -c, --css-file <file>         Path to generate the CSS file');
-        console.log('  -t, --tailwind-config <file>  Path to Tailwind config file');
-        console.log('  --include-woff1               Include WOFF1 format for better browser compatibility');
-        console.log('  --verbose                     Show detailed progress information');
-        console.log('  --dry-run                     Preview actions without executing them');
+        console.log('\nUsage: npx localfont@latest <google-fonts-url> [options]');
         process.exit(1);
     }
 
-    const spinner = ora('Processing Google Font').start();
-    const log = options.verbose ? console.log : () => {};
+    const spinner = ora().start();
+    let totalVariants = 0;
+    let fontFamily = '';
+    let totalSize = 0;
+    let downloadedVariants = 0;
 
     try {
         const defaults = await getDefaultPaths();
@@ -103,34 +43,57 @@ async function main() {
             configFile: options.tailwindConfig || defaults.configFile,
             includeWoff1: options.includeWoff1 || false,
             verbose: options.verbose || false,
-            dryRun: options.dryRun || false
+            dryRun: options.dryRun || false,
+            onProgress: (stage, detail) => {
+                switch (stage) {
+                    case 'font_family':
+                        fontFamily = detail;
+                        spinner.text = `Processing ${fontFamily}`;
+                        break;
+                    case 'total_variants':
+                        totalVariants = detail;
+                        spinner.text = `Processing ${fontFamily}`;
+                        break;
+                    case 'start_variant':
+                        const [weight, style] = detail.split(' ');
+                        if (options.verbose) {
+                            spinner.suffixText = chalk.gray(`${weight} ${style}`);
+                        }
+                        break;
+                    case 'download_complete':
+                        const size = parseFloat(detail);
+                        totalSize += size;
+                        downloadedVariants++;
+                        const progress = Math.round((downloadedVariants / (totalVariants * (config.includeWoff1 ? 2 : 1))) * 100);
+
+                        if (options.verbose) {
+                            spinner.text = `Downloading ${fontFamily} [${progress}%]`;
+                            spinner.suffixText = chalk.gray(`${size.toFixed(1)}KB`);
+                        } else {
+                            spinner.text = `Downloading ${fontFamily}`;
+                        }
+                        break;
+                }
+            }
         };
 
         if (config.dryRun) {
-            spinner.info(chalk.blue('Dry run mode - no files will be modified'));
-            console.log('\nWould process with configuration:');
-            console.log(`Fonts directory: ${config.fontsDir}`);
-            console.log(`CSS file: ${config.cssFile}`);
-            console.log(`Tailwind config: ${config.configFile}`);
-            console.log(`Include WOFF1: ${config.includeWoff1}`);
+            spinner.info('Dry run mode - no files will be modified');
             process.exit(0);
         }
 
         await processFont(url, config);
 
-        spinner.succeed(chalk.green('Font files downloaded and configured successfully!'));
+        const successMessage = options.verbose 
+            ? `✓ Downloaded ${fontFamily} (${totalSize.toFixed(1)}KB)`
+            : `✓ Downloaded ${fontFamily}`;
 
-        if (config.verbose) {
-            console.log(chalk.blue('\nConfiguration used:'));
-            console.log(`Fonts directory: ${config.fontsDir}`);
-            console.log(`CSS file: ${config.cssFile}`);
-            console.log(`Tailwind config: ${config.configFile}`);
-            console.log(`Include WOFF1: ${config.includeWoff1}`);
-        }
+        spinner.succeed(chalk.green(successMessage));
 
         console.log(chalk.blue('\nNext steps:'));
-        console.log(`1. Import the CSS file in your main CSS: ${config.cssFile}`);
-        console.log('2. Use the font in your Tailwind classes');
+        console.log(`1. Import the CSS file: ${chalk.cyan(config.cssFile)}`);
+        console.log(`2. Use the font in Tailwind classes: ${chalk.cyan(`font-${fontFamily.toLowerCase()}`)}`);
+
     } catch (error) {
         spinner.fail(chalk.red('Error occurred'));
         console.error(chalk.red(error.message));
@@ -142,4 +105,7 @@ async function main() {
     }
 }
 
-main().catch(console.error);
+main().catch((error) => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+});

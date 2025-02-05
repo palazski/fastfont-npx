@@ -12,29 +12,26 @@ async function processFont(url, config = {}) {
             cssFile = 'styles/fonts.css',
             configFile = 'tailwind.config.js',
             includeWoff1 = false,
-            verbose = false
+            verbose = false,
+            onProgress = () => {}
         } = config;
-
-        const log = verbose ? console.log : () => {};
 
         // Create necessary directories
         await fs.ensureDir(fontsDir);
         await fs.ensureDir(path.dirname(cssFile));
 
-        log('Parsing Google Font URL...');
-        // Parse the Google Font URL
+        // Parse the Google Font URL and get font data
         const fontData = await parseGoogleFontUrl(url);
+        onProgress('font_family', fontData.family);
+        onProgress('total_variants', fontData.totalVariants);
 
-        log('Downloading font files...');
         // Download font files to specified directory
-        const downloadedFiles = await downloadFonts(fontData, fontsDir, { includeWoff1, verbose });
+        const downloadedFiles = await downloadFonts(fontData, fontsDir, { includeWoff1, verbose, onProgress });
 
-        log('Generating CSS...');
         // Generate CSS with correct paths
         const cssContent = await generateCss(fontData, downloadedFiles, cssFile, { includeWoff1 });
         await fs.writeFile(cssFile, cssContent);
 
-        log('Updating Tailwind configuration...');
         // Update Tailwind config at specified path
         await updateTailwindConfig(fontData.family, configFile);
 

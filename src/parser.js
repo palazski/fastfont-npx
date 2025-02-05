@@ -1,13 +1,33 @@
 const axios = require('axios');
 
+function validateGoogleFontUrl(url) {
+    if (!url) {
+        throw new Error('URL is required');
+    }
+
+    try {
+        const urlObj = new URL(url);
+        if (!urlObj.hostname.endsWith('fonts.googleapis.com')) {
+            throw new Error('Invalid Google Fonts domain');
+        }
+        if (!urlObj.pathname.includes('/css2')) {
+            throw new Error('Invalid Google Fonts API version - use CSS2 endpoint');
+        }
+        if (!urlObj.searchParams.has('family')) {
+            throw new Error('Font family parameter is missing');
+        }
+    } catch (error) {
+        if (error.code === 'ERR_INVALID_URL') {
+            throw new Error('Invalid URL format');
+        }
+        throw error;
+    }
+}
+
 async function parseGoogleFontUrl(url) {
     try {
-        // Validate URL
-        if (!url.includes('fonts.googleapis.com/css2')) {
-            throw new Error('Invalid Google Fonts URL');
-        }
+        validateGoogleFontUrl(url);
 
-        // Extract font family and settings
         const familyMatch = url.match(/family=([^&]+)/);
         if (!familyMatch) {
             throw new Error('Could not find font family in URL');
@@ -15,18 +35,17 @@ async function parseGoogleFontUrl(url) {
 
         const [familyPart, settingsPart] = familyMatch[1].split(':');
         const family = decodeURIComponent(familyPart);
-
-        // Parse weight ranges and styles
         const variants = [];
 
         if (settingsPart) {
-            // Handle different format types
             if (settingsPart.startsWith('ital,wght@')) {
-                // Format: ital,wght@0,100;0,200;1,100;1,200
                 const variantSets = settingsPart.replace('ital,wght@', '').split(';');
 
                 variantSets.forEach(set => {
                     const [italic, weight] = set.split(',');
+                    if (!weight || isNaN(parseInt(weight))) {
+                        throw new Error(`Invalid weight value in variant: ${set}`);
+                    }
                     const isItalic = italic === '1';
 
                     variants.push({
@@ -35,13 +54,17 @@ async function parseGoogleFontUrl(url) {
                     });
                 });
             } else if (settingsPart.startsWith('wght@')) {
-                // Format: wght@100;200;300..900
                 const weightSets = settingsPart.replace('wght@', '').split(';');
 
                 weightSets.forEach(weight => {
                     if (weight.includes('..')) {
-                        // Handle weight range (e.g., 100..900)
                         const [start, end] = weight.split('..').map(Number);
+                        if (isNaN(start) || isNaN(end)) {
+                            throw new Error(`Invalid weight range: ${weight}`);
+                        }
+                        if (start > end) {
+                            throw new Error(`Invalid weight range: start (${start}) is greater than end (${end})`);
+                        }
                         for (let w = start; w <= end; w += 100) {
                             variants.push({
                                 weight: w.toString(),
@@ -49,27 +72,41 @@ async function parseGoogleFontUrl(url) {
                             });
                         }
                     } else {
+                        const w = parseInt(weight);
+                        if (isNaN(w)) {
+                            throw new Error(`Invalid weight value: ${weight}`);
+                        }
                         variants.push({
                             weight: weight,
                             style: 'normal'
                         });
                     }
                 });
+            } else {
+                throw new Error(`Unsupported font variant format: ${settingsPart}`);
             }
         }
 
-        console.log('Parsed variants:', variants);
+        if (variants.length === 0) {
+            variants.push({
+                weight: '400',
+                style: 'normal'
+            });
+        }
 
-        // Fetch CSS to get font URLs and metadata
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
 
-        // Extract @font-face blocks with their metadata
-        const fontFaceBlocks = response.data.match(/@font-face\s*{[^}]+}/g) || [];
+        const fontFaceBlocks = response.data.match(/@font-face\s*{[^}]+}/g);
+        if (!fontFaceBlocks) {
+            throw new Error('No @font-face blocks found in the CSS response');
+        }
+
         const fontFiles = [];
+        let hasValidFontFile = false;
 
         fontFaceBlocks.forEach(block => {
             const urlMatch = block.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2[^)]*)\)/);
@@ -77,6 +114,7 @@ async function parseGoogleFontUrl(url) {
             const styleMatch = block.match(/font-style:\s*(\w+)/);
 
             if (urlMatch && weightMatch && styleMatch) {
+                hasValidFontFile = true;
                 fontFiles.push({
                     url: urlMatch[1],
                     metadata: {
@@ -87,16 +125,26 @@ async function parseGoogleFontUrl(url) {
             }
         });
 
-        if (fontFiles.length === 0) {
-            throw new Error('No WOFF2 files found');
+        if (!hasValidFontFile) {
+            throw new Error('No valid WOFF2 files found in the CSS response');
         }
 
         return {
             family,
             fontFiles,
-            variants
+            variants,
+            totalVariants: variants.length
         };
     } catch (error) {
+        if (error.response?.status === 400) {
+            throw new Error('Invalid Google Font URL or font family not found');
+        } else if (error.response?.status === 403) {
+            throw new Error('Access denied by Google Fonts API');
+        } else if (error.response?.status === 404) {
+            throw new Error('Font not found on Google Fonts');
+        } else if (error.code === 'ENOTFOUND') {
+            throw new Error('Network error: Could not connect to Google Fonts API');
+        }
         throw new Error(`Failed to parse Google Font URL: ${error.message}`);
     }
 }
