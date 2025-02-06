@@ -13,7 +13,7 @@ A CLI tool to download Google Fonts and serve them locally in your project with 
 ## Installation
 
 ```bash
-npx fastfont@latest "YOUR_GOOGLE_FONTS_URL"
+npx fastfont "YOUR_GOOGLE_FONTS_URL"
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ npx fastfont@latest "YOUR_GOOGLE_FONTS_URL"
 2. Run the command:
 
 ```bash
-npx fastfont@latest "https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+npx fastfont "https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
 ```
 
 ### Options

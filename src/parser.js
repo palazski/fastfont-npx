@@ -38,7 +38,35 @@ async function parseGoogleFontUrl(url) {
         const variants = [];
 
         if (settingsPart) {
-            if (settingsPart.startsWith('ital,wght@')) {
+            if (settingsPart.includes('opsz,')) {
+                // Handle variable font format with optical size
+                const variantSets = settingsPart.split('@')[1].split(';');
+
+                variantSets.forEach(set => {
+                    const [italic, opsz, weight] = set.split(',');
+                    if (!weight || isNaN(parseInt(weight.split('..')[0]))) {
+                        throw new Error(`Invalid weight value in variant: ${set}`);
+                    }
+
+                    if (weight.includes('..')) {
+                        const [start, end] = weight.split('..').map(Number);
+                        if (isNaN(start) || isNaN(end)) {
+                            throw new Error(`Invalid weight range: ${weight}`);
+                        }
+                        for (let w = start; w <= end; w += 100) {
+                            variants.push({
+                                weight: w.toString(),
+                                style: italic === '1' ? 'italic' : 'normal'
+                            });
+                        }
+                    } else {
+                        variants.push({
+                            weight: weight,
+                            style: italic === '1' ? 'italic' : 'normal'
+                        });
+                    }
+                });
+            } else if (settingsPart.startsWith('ital,wght@')) {
                 const variantSets = settingsPart.replace('ital,wght@', '').split(';');
 
                 variantSets.forEach(set => {
