@@ -1,5 +1,5 @@
 {
-  "name": "@palazski/fastfont",
+  "name": "fastfont",
   "version": "0.0.1",
   "main": "index.js",
   "bin": {
