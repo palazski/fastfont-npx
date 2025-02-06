@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function validateGoogleFontUrl(url) {
     if (!url) {
@@ -128,7 +128,10 @@ async function parseGoogleFontUrl(url) {
             }
         });
 
-        const fontFaceBlocks = response.data.match(/@font-face\s*{[^}]+}/g);
+        // Just pass the CSS content directly
+        const cssContent = response.data;
+        const fontFaceBlocks = cssContent.match(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/\s*@font-face\s*{[^}]+}/g);
+        
         if (!fontFaceBlocks) {
             throw new Error('No @font-face blocks found in the CSS response');
         }
@@ -137,9 +140,11 @@ async function parseGoogleFontUrl(url) {
         let hasValidFontFile = false;
 
         fontFaceBlocks.forEach(block => {
+            const commentMatch = block.match(/\/\*([^*]*\*+(?:[^/*][^*]*\*+)*)\//);
             const urlMatch = block.match(/url\((https:\/\/fonts\.gstatic\.com[^)]+\.woff2[^)]*)\)/);
-            const weightMatch = block.match(/font-weight:\s*(\d+)/);
+            const weightMatch = block.match(/font-weight:\s*([^;]+)/);
             const styleMatch = block.match(/font-style:\s*(\w+)/);
+            const unicodeMatch = block.match(/unicode-range:\s*([^;]+)/);
 
             if (urlMatch && weightMatch && styleMatch) {
                 hasValidFontFile = true;
@@ -147,15 +152,13 @@ async function parseGoogleFontUrl(url) {
                     url: urlMatch[1],
                     metadata: {
                         weight: weightMatch[1],
-                        style: styleMatch[1]
+                        style: styleMatch[1],
+                        comment: commentMatch ? commentMatch[1].trim() : '',
+                        unicodeRange: unicodeMatch ? unicodeMatch[1].trim() : ''
                     }
                 });
             }
         });
-
-        if (!hasValidFontFile) {
-            throw new Error('No valid WOFF2 files found in the CSS response');
-        }
 
         return {
             family,
@@ -177,4 +180,4 @@ async function parseGoogleFontUrl(url) {
     }
 }
 
-module.exports = { parseGoogleFontUrl };
+export { parseGoogleFontUrl };

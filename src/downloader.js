@@ -1,7 +1,7 @@
-const axios = require('axios');
-const fs = require('fs-extra');
-const path = require('path');
-const crypto = require('crypto');
+import axios from 'axios';
+import fs from 'fs-extra';
+import path from 'path';
+import crypto from 'crypto';
 
 async function downloadWithRetry(url, options = {}, maxRetries = 3) {
     let lastError;
@@ -113,4 +113,4 @@ async function downloadFonts(fontData, fontsDir = 'fonts', options = {}) {
     return downloads;
 }
 
-module.exports = { downloadFonts };
+export { downloadFonts };
