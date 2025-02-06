@@ -1,8 +1,7 @@
 # fastfont 🎨
 
 Download Google Fonts locally and configure them with TailwindCSS in one command.
-
-## Quick Start
+Entirely made by AI. React me at palazski@gmail.com
 
 ## Features
 
