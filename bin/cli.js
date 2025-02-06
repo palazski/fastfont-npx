@@ -29,7 +29,7 @@ async function main() {
     if (!url) {
         console.error(chalk.red("Error: Please provide a Google Fonts URL"));
         console.log(
-            "\nUsage: npx localfont@latest <google-fonts-url> [options]",
+            "\nUsage: npx fastfont@latest <google-fonts-url> [options]",
         );
         process.exit(1);
     }

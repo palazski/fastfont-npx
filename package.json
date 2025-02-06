@@ -1,9 +1,9 @@
 {
-  "name": "@palazski/localfont",
-  "version": "0.0.2",
+  "name": "@palazski/fastfont",
+  "version": "0.0.1",
   "main": "index.js",
   "bin": {
-    "localfont": "bin/cli.js"
+    "fastfont": "bin/cli.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
