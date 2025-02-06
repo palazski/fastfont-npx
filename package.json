@@ -1,6 +1,6 @@
 {
   "name": "fastfont",
-  "version": "0.0.1",
+  "version": "0.0.1.1",
   "main": "index.js",
   "bin": {
     "fastfont": "bin/cli.js"
